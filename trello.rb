@@ -3,7 +3,7 @@ require 'faraday'
 require 'json'
 require 'time'
 
-trello_boards = ENV['TRELLO_BOARDS'].split(',')
+trello_boards = ENV['TRELLO_BOARDS'].split(',').inject([]) {|boards, id| boards << {'id' => id}}
 trello_key = ENV['TRELLO_KEY']
 trello_token = ENV['TRELLO_TOKEN']
 flowdock_token = ENV['FLOWDOCK_TOKEN']
@@ -29,14 +29,13 @@ flowdock = Faraday.new(:url => 'https://api.flowdock.com') do |faraday|
   faraday.adapter Faraday.default_adapter
 end
 
-last_time = nil
-
 while true
-  sleep 60
-  
   trello_boards.each do |trello_board|
+    board_id = trello_board['id']
+    last_time = trello_board['last_time']
+
     begin
-      response = trello.get "/1/boards/#{trello_board}/actions?key=#{trello_key}&token=#{trello_token}"
+      response = trello.get "/1/boards/#{board_id}/actions?key=#{trello_key}&token=#{trello_token}"
       results = JSON.parse(response.body)
       results.reverse!
       
@@ -53,8 +52,9 @@ while true
             project = data['board']['name']
             board_id = data['board']['id']
             board_link = "https://trello.com/board/#{board_id}"
-            card_link = "https://trello.com/card/#{board_id}/#{data['card']['idShort']}"
-            card_name = data['card']['name']
+            card_data = data['card'] || {}
+            card_link = "https://trello.com/card/#{board_id}/#{card_data['idShort']}"
+            card_name = card_data['name']
             case result['type']
             when 'addMemberToCard'
               subject = "Added #{result['member']['fullName']} to: #{card_name}"
@@ -108,16 +108,20 @@ while true
             puts ex.backtrace * "\n"
           end
         end
+      else
+        puts "Skipping #{board_id}"
       end
       
       # Set last time of most recent result
       results.each do |result|
         timestamp = Time.parse(result['date'])
-        last_time = last_time ? [last_time, timestamp].max : timestamp
+        trello_board['last_time'] = last_time ? [last_time, timestamp].max : timestamp
       end
     rescue Exception => ex
       puts ex.message
       puts ex.backtrace * "\n"
     end
   end
+
+  sleep 60
 end
