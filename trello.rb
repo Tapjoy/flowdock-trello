@@ -3,7 +3,7 @@ require 'faraday'
 require 'json'
 require 'time'
 
-trello_boards = ENV['TRELLO_BOARDS'].split(',').inject([]) {|boards, id| boards << {'id' => id}}
+trello_organization = ENV['TRELLO_ORGANIZATION']
 trello_key = ENV['TRELLO_KEY']
 trello_token = ENV['TRELLO_TOKEN']
 flowdock_token = ENV['FLOWDOCK_TOKEN']
@@ -27,6 +27,13 @@ end
 flowdock = Faraday.new(:url => 'https://api.flowdock.com') do |faraday|
   faraday.request :url_encoded
   faraday.adapter Faraday.default_adapter
+end
+
+trello_boards = []
+response = trello.get "/1/organizations/#{trello_organization}/boards?key=#{trello_key}&token=#{trello_token}"
+results = JSON.parse(response.body)
+results.each do |board|
+  trello_boards << {'id' => board['id']} unless board['closed']
 end
 
 while true
