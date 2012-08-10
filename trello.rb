@@ -29,14 +29,14 @@ flowdock = Faraday.new(:url => 'https://api.flowdock.com') do |faraday|
   faraday.adapter Faraday.default_adapter
 end
 
-trello_boards = []
-response = trello.get "/1/organizations/#{trello_organization}/boards?key=#{trello_key}&token=#{trello_token}"
-results = JSON.parse(response.body)
-results.each do |board|
-  trello_boards << {'id' => board['id']} unless board['closed']
-end
-
 while true
+  trello_boards = []
+  response = trello.get "/1/organizations/#{trello_organization}/boards?key=#{trello_key}&token=#{trello_token}"
+  results = JSON.parse(response.body)
+  results.each do |board|
+    trello_boards << {'id' => board['id']} unless board['closed']
+  end
+
   trello_boards.each do |trello_board|
     board_id = trello_board['id']
     last_time = trello_board['last_time']
