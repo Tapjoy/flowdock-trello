@@ -6,6 +6,7 @@ require 'time'
 trello_organization = ENV['TRELLO_ORGANIZATION']
 trello_key = ENV['TRELLO_KEY']
 trello_token = ENV['TRELLO_TOKEN']
+trello_actions = ENV['TRELLO_ACTIONS'].split(',')
 flowdock_token = ENV['FLOWDOCK_TOKEN']
 flowdock_email = ENV['FLOWDOCK_EMAIL']
 
@@ -59,6 +60,7 @@ while true
             
             data = result['data']
             source = 'Trello'
+            action = nil
             from = result['memberCreator']['fullName']
             from_address = flowdock_email
             project = data['board']['name']
@@ -69,25 +71,33 @@ while true
             card_name = card_data['name']
             case result['type']
             when 'addMemberToCard'
+              action = 'addMemberToCard'
               subject = "Added #{result['member']['fullName']} to: #{card_name}"
               content = card_name
             when 'commentCard'
+              action = 'commentCard'
               subject = "Commented on: #{card_name}"
               content = data['text']
             when 'createCard'
+              action = 'createCard'
               subject = "Created: #{card_name}"
               content = card_name
             when 'removeMemberFromCard'
+              action = 'removeMemberFromCard'
               subject = "Removed #{result['member']['fullName']} from: #{card_name}"
               content = card_name
             when 'updateCard'
               if data['listAfter'] && data['listBefore']['name'] != data['listAfter']['name']
+                action = 'updateCardList'
                 subject = "Moved to #{data['listAfter']['name']}: #{card_name}"
               elsif data['old'] && data['old']['desc']
+                action = 'updateCardDescription'
                 subject = "Updated description for: #{card_name}"
               elsif data['old'] && data['old']['name']
+                action = 'updateCardName'
                 subject = "Updated name for: #{card_name}"
               elsif data['old'] && !data['old']['closed'].nil?
+                action = 'updateCardClosed'
                 if data['old']['closed']
                   subject = "Reopened: #{card_name}"
                 else
@@ -98,6 +108,7 @@ while true
               end
               content = data['card']['desc'] || 'Updated'
             when 'updateCheckItemStateOnCard'
+              action = 'updateCheckItemStateOnCard'
               subject = "Updated #{data['checkItem']['name']} on: #{card_name}"
               content = "State: #{data['checkItem']['state'] || 'incomplete'}"
             else
@@ -105,16 +116,18 @@ while true
             end
             content = text_to_html(content)
             
-            flowdock.post "/v1/messages/team_inbox/#{flowdock_token}", {
-              :source => source,
-              :from_address => from_address,
-              :subject => subject,
-              :content => content,
-              :from_name => from,
-              :project => project,
-              :format => 'html',
-              :link => card_link
-            }
+            if trello_actions.include?(action)
+              flowdock.post "/v1/messages/team_inbox/#{flowdock_token}", {
+                :source => source,
+                :from_address => from_address,
+                :subject => subject,
+                :content => content,
+                :from_name => from,
+                :project => project,
+                :format => 'html',
+                :link => card_link
+              }
+            end
           rescue Exception => ex
             puts ex.message
             puts ex.backtrace * "\n"
