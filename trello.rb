@@ -63,7 +63,7 @@ while true
             action = nil
             from = result['memberCreator']['fullName']
             from_address = flowdock_email
-            project = data['board']['name']
+            project = data['board']['name'].gsub(/[^\w\s]/, '_')
             board_id = data['board']['id']
             board_link = "https://trello.com/board/#{board_id}"
             card_data = data['card'] || {}
