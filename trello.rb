@@ -3,6 +3,8 @@ require 'faraday'
 require 'json'
 require 'time'
 
+$stdout.sync = true
+
 trello_organization = ENV['TRELLO_ORGANIZATION']
 trello_key = ENV['TRELLO_KEY']
 trello_token = ENV['TRELLO_TOKEN']
